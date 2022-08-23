@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "StepperTester",
+			"path": ".."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"old": "cpp"
+		}
+	}
+}
