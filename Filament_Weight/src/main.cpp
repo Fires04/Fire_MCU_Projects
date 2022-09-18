@@ -8,11 +8,12 @@
 const int LOADCELL_DOUT_PIN = 4;
 const int LOADCELL_SCK_PIN = 5;
 HX711 scale;
-int readedWeight = 0;
+float offset = 493.45;
+float readedWeight = 0;
 
 //button
-const int BUTTON_LEFT = 8;
-const int BUTTON_RIGHT = 2;
+const int BUTTON_LEFT = 2;
+const int BUTTON_RIGHT = 8;
 ezButton buttonLeft(BUTTON_LEFT);
 ezButton buttonRight(BUTTON_RIGHT);
 
@@ -27,22 +28,46 @@ noDelay NScaleRead(2000, readScale);
 
 //Fillaments
 unsigned int fillamentType = 0;
+String filamentsName[4] = {"NebS-PET", "NebS-PLA", "Neb-PET", "Neb-PLA"};
+// 1cm3 = 0.4158
+// PLA 1.24g/cm3
+// PLA lenght = (weight / 1.24 ) * 0.4158 = weight * 0.335323
+// PETG lenght = (weight / 1.23 ) * 0.4158 = weight * 0.338049
+float fillamentsGramToLength[4] = {0.338049,0.335323, 0.338049,0.335323};
+float fillamentsSpoolWeight[4] = {278,278,0,0};
+float fillamentLength = 0;
 
 void updateDisplay(){
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Weight: ");
-    lcd.print(readedWeight);
+    lcd.print(readedWeight,1);
+    lcd.print("g");
+    lcd.setCursor(8,0);
+    lcd.print(filamentsName[fillamentType]);
+
     lcd.setCursor(0,1);
-    lcd.print("F: ");
-    lcd.print(fillamentType);
+    lcd.print(readedWeight-fillamentsSpoolWeight[fillamentType],1);
+    lcd.print("g");
+
+    lcd.setCursor(8,1);
+    lcd.print(fillamentLength);
+    lcd.print("m");
 }
 
 void readScale() {
   //scale.power_up();
-  readedWeight = scale.get_units(10);
+  readedWeight = scale.get_units(10)-offset;
+  fillamentLength = (readedWeight-fillamentsSpoolWeight[fillamentType])*fillamentsGramToLength[fillamentType];
+
   Serial.print("Weight: ");
-  Serial.println(readedWeight,1);
+  Serial.print(readedWeight,1);
+  Serial.print("\t|\tType: ");
+  Serial.print(fillamentType,1);
+  Serial.print("\t|\tName: ");
+  Serial.print(filamentsName[fillamentType]);
+  Serial.print("\t|\tLength: ");
+  Serial.println(fillamentLength,1);
+
   updateDisplay();
   //Serial.print("one reading:\t");
   //Serial.print(scale.get_units(), 1);
@@ -52,20 +77,30 @@ void readScale() {
 }
 
 void routineButton() {
+    if(buttonRight.getState()==0 && buttonLeft.getState()==0){
+      Serial.println("SCALE TARE");
+      scale.tare(20);
+      offset = 0;
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("----  TARE  ----");
+      return;
+    }
     if (buttonLeft.isPressed()) {
         Serial.println("Button left pressed");
-        if(fillamentType >= 0){
+        if(fillamentType > 0){
           fillamentType--;
         }
         updateDisplay();
     }
     if (buttonRight.isPressed()) {
         Serial.println("Button right pressed");
-        if(fillamentType <= 10){
+        if(fillamentType < 4){
           fillamentType++;
         }
         updateDisplay();
     }
+
 }
 
 void setup() {
@@ -79,8 +114,8 @@ void setup() {
   Serial.println("Initializing the scale");
   scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
   Serial.println("Before setting up the scale:");
-  scale.set_scale(2280.f);                      // this value is obtained by calibrating the scale with known weights; see the README for details
-  //scale.tare();				        // reset the scale to 0
+  scale.set_scale(402.f);
+  //scale.tare();
   Serial.println("After setting up the scale");
 
 }
